@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: dynamic-database-web
+  thymeleaf:
+    cache: false
+  http:
+    encoding:
+      charset: utf-8
+      enabled: true
+      force: true
+  datasource:
+    dynamic:
+      primary: master #设置默认的数据源或者数据源组,默认值即为master
+      strict: true #严格匹配数据源,默认false. true未匹配到指定数据源时抛异常,false使用默认数据源
+      datasource:
+        master:
+          url: jdbc:p6spy:mysql://localhost:3308/test?serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true
+          #url: jdbc:mysql://localhost:3308/test?serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&useSSL=false
+          username: root
+          password: 123456
+          driver-class-name: com.p6spy.engine.spy.P6SpyDriver
+          #driver-class-name: com.mysql.cj.jdbc.Driver # 3.2.0开始支持SPI可省略此配置
+          hikari:
+            minimum-idle: 10
+            maximum-pool-size: 20
+            idle-timeout: 500000
+            max-lifetime: 540000
+            connection-timeout: 60000
+            connection-test-query: SELECT 1
+        slave:
+          url: jdbc:p6spy:mysql://localhost:3308/test1?serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true
+          #url: jdbc:mysql://localhost:3308/test1?serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&useSSL=false
+          username: root
+          password: 123456
+          driver-class-name: com.p6spy.engine.spy.P6SpyDriver
+          #driver-class-name: com.mysql.cj.jdbc.Driver
+          hikari:
+            minimum-idle: 10
+            maximum-pool-size: 20
+            idle-timeout: 500000
+            max-lifetime: 540000
+            connection-timeout: 60000
+            connection-test-query: SELECT 1
+  servlet:
+    multipart:
+      max-request-size: 5GB  # 上传文件总的最大值 默认10MB
+      max-file-size: 1GB #单个文件最大值 默认10MB
+
+server:
+  port: 8080
+
+# Logger Config
+logging:
+  level:
+    com.baomidou.mybatisplus.samples: debug
