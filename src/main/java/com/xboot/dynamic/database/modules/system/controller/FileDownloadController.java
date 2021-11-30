@@ -16,7 +16,36 @@ public class FileDownloadController {
     /**
      * 实现文件上传
      */
-    @RequestMapping("upload")
+    @RequestMapping("/csv")
+    public String csvUpload(@RequestParam("fileName") MultipartFile file) {
+        if (file.isEmpty()) {
+            return "false";
+        }
+        String fileName = file.getOriginalFilename();
+        int size = (int) file.getSize();
+        System.out.println(fileName + "-->" + size);
+
+        String path = "D:/test";
+        File dest = new File(path + "/" + fileName);
+        if (!dest.getParentFile().exists()) { //判断文件父目录是否存在
+            dest.getParentFile().mkdir();
+        }
+        try {
+            file.transferTo(dest); //保存文件
+            return "true";
+        } catch (IllegalStateException e) {
+            e.printStackTrace();
+            return "false";
+        } catch (IOException e) {
+            e.printStackTrace();
+            return "false";
+        }
+    }
+
+    /**
+     * 实现文件上传
+     */
+    @RequestMapping("/upload")
     public String fileUpload(@RequestParam("fileName") MultipartFile file) {
         if (file.isEmpty()) {
             return "false";
@@ -25,7 +54,7 @@ public class FileDownloadController {
         int size = (int) file.getSize();
         System.out.println(fileName + "-->" + size);
 
-        String path = "F:/test";
+        String path = "D:/test";
         File dest = new File(path + "/" + fileName);
         if (!dest.getParentFile().exists()) { //判断文件父目录是否存在
             dest.getParentFile().mkdir();
@@ -57,7 +86,7 @@ public class FileDownloadController {
             return "false";
         }
 
-        String path = "F:/test";
+        String path = "D:/test";
 
         for (MultipartFile file : files) {
             String fileName = file.getOriginalFilename();

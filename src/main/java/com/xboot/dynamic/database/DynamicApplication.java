@@ -10,5 +10,6 @@ public class DynamicApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(DynamicApplication.class, args);
+        System.out.println("App running at port : "+System.getProperty("server.port"));
     }
 }

@@ -10,7 +10,7 @@
         </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>opencsv-kit</artifactId>
+    <artifactId>dynamic-database-web-start</artifactId>
     <groupId>com.xboot</groupId>
     <packaging>jar</packaging>
     <version>1.0.0</version>
@@ -152,7 +152,18 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>
+            <optional>true</optional>
         </dependency>
+        <!--添加第三方开源包cpdetector获取文件编码格式-->
+        <!-- https://mvnrepository.com/artifact/cpdetector/cpdetector -->
+        <dependency>
+            <groupId>cpdetector</groupId>
+            <artifactId>cpdetector</artifactId>
+            <version>1.0.10</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/cpdetector_1.0.10.jar</systemPath>
+        </dependency>
+
     </dependencies>
 
     <build>

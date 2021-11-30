@@ -1,14 +1,80 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity3">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity3">
 <head>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8"/>
     <title>Insert title here</title>
+    <!-- UIkit CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.2.2/dist/css/uikit.min.css"/>
+
+    <!-- UIkit JS -->
+    <script src="https://cdn.jsdelivr.net/npm/uikit@3.2.2/dist/js/uikit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/uikit@3.2.2/dist/js/uikit-icons.min.js"></script>
 </head>
 <body>
-<h1 th:inlines="text">文件上传</h1>
-<form action="fileUpload" method="post" enctype="multipart/form-data">
-    <p>选择文件: <input type="file" name="fileName"/></p>
-    <p><input type="submit" value="提交"/></p>
-</form>
+
+<div>
+    <a class="uk-button uk-button-secondary" href="">上传</a>
+    <div class="js-upload" uk-form-custom>
+<!--        <input type="file" multiple/>-->
+        <input type="file"/>
+        <button class="uk-button uk-button-default" type="button" tabindex="-1">Select</button>
+    </div>
+    <progress id="js-progressbar" class="uk-progress" value="0" max="100" hidden></progress>
+
+
+</div>
+<script>
+
+    var bar = document.getElementById('js-progressbar');
+
+    UIkit.upload('.js-upload', {
+        url: '/file/csv',
+        multiple: false,
+        name: 'fileName',
+        // allow: false,
+        // mime: 'text/csv',
+        beforeSend: function (environment) {
+            console.log('beforeSend', arguments);
+            // The environment object can still be modified here.
+            // var {data, method, headers, xhr, responseType} = environment;
+        },
+        beforeAll: function () {
+            console.log('beforeAll', arguments);
+        },
+        load: function () {
+            console.log('load', arguments);
+        },
+        error: function () {
+            console.log('error', arguments);
+        },
+        complete: function () {
+            console.log('complete', arguments);
+        },
+        loadStart: function (e) {
+            console.log('loadStart', arguments);
+            bar.removeAttribute('hidden');
+            bar.max = e.total;
+            bar.value = e.loaded;
+        },
+        progress: function (e) {
+            console.log('progress', arguments);
+            bar.max = e.total;
+            bar.value = e.loaded;
+        },
+        loadEnd: function (e) {
+            console.log('loadEnd', arguments);
+            bar.max = e.total;
+            bar.value = e.loaded;
+        },
+        completeAll: function () {
+            console.log('completeAll', arguments);
+            setTimeout(function () {
+                bar.setAttribute('hidden', 'hidden');
+            }, 1000);
+            alert('Upload Completed');
+        }
+    });
+</script>
 </body>
 </html>
