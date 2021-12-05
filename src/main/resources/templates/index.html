@@ -14,7 +14,7 @@
 <body>
 
 <div>
-    <a class="uk-button uk-button-secondary" href="">上传</a>
+    <a class="uk-button uk-button-secondary" href="http://localhost:8080/test.txt" download="test">下载</a>
     <div class="js-upload" uk-form-custom>
 <!--        <input type="file" multiple/>-->
         <input type="file"/>
@@ -29,9 +29,9 @@
     var bar = document.getElementById('js-progressbar');
 
     UIkit.upload('.js-upload', {
-        url: '/file/csv',
+        url: '/upload',
         multiple: false,
-        name: 'fileName',
+        name: 'file',
         // allow: false,
         // mime: 'text/csv',
         beforeSend: function (environment) {
