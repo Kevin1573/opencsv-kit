@@ -9,4 +9,9 @@ public class PageController {
     public String index() {
         return "index";
     }
+
+    @GetMapping("/dashboard")
+    public String dashboard() {
+        return "uploadA";
+    }
 }

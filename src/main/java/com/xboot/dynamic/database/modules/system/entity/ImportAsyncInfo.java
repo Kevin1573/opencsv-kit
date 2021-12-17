@@ -1,30 +1,32 @@
 package com.xboot.dynamic.database.modules.system.entity;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 用于存储csv导入的进度信息
  */
 public class ImportAsyncInfo {
     //用于存储所有的导入进度信息
-    public static Map<String, ImportAsyncInfo> allAsyncInfo = new HashMap<String, ImportAsyncInfo>();
+    public static Map<String, ImportAsyncInfo> allAsyncInfo = new ConcurrentHashMap<>();
 
     //提示信息或 异常信息
     private String msg;
     //数据总数
-    private Integer totality = 0;
+    private AtomicInteger totality = new AtomicInteger(0);
     //已处理的数据条数
-    private Integer doneSum = 0;
+    private AtomicInteger doneSum = new AtomicInteger(0);
     //失败的数据条数
-    private Integer errorSum = 0;
+    private AtomicInteger errorSum = new AtomicInteger(0);
     //成功的数据条数
-    private Integer successSum = 0;
+    private AtomicInteger successSum = new AtomicInteger(0);
     //错误文件的路径
     public String errorFilePath;
     //导入是否结束
-    public Boolean isEnd = false;
+    public AtomicBoolean isEnd = new AtomicBoolean(false);
 
     /**
      * 创建一个进度信息,并获取对应的uuid
@@ -65,7 +67,7 @@ public class ImportAsyncInfo {
      */
     public static void doneSumAddOne(String uuid) {
         ImportAsyncInfo asyncInfo = getAsyncInfo(uuid);
-        asyncInfo.setDoneSum(asyncInfo.getDoneSum() + 1);
+        asyncInfo.doneSum.addAndGet(1);
     }
 
     /**
@@ -75,7 +77,7 @@ public class ImportAsyncInfo {
      */
     public static void errorSumAddOne(String uuid) {
         ImportAsyncInfo asyncInfo = getAsyncInfo(uuid);
-        asyncInfo.setErrorSum(asyncInfo.getErrorSum() + 1);
+        asyncInfo.errorSum.addAndGet(1);
     }
 
     /**
@@ -85,7 +87,7 @@ public class ImportAsyncInfo {
      */
     public static void successSumAddOne(String uuid) {
         ImportAsyncInfo asyncInfo = getAsyncInfo(uuid);
-        asyncInfo.setSuccessSum(asyncInfo.getSuccessSum() + 1);
+        asyncInfo.successSum.addAndGet(1);
     }
 
     public String getMsg() {
@@ -96,36 +98,36 @@ public class ImportAsyncInfo {
         this.msg = msg;
     }
 
-    public Integer getTotality() {
+    public AtomicInteger getTotality() {
         return totality;
     }
 
-    public void setTotality(Integer totality) {
-        this.totality = totality;
+    public void setTotality(Integer newTotality) {
+        this.totality.set(newTotality);
     }
 
-    public Integer getDoneSum() {
+    public AtomicInteger getDoneSum() {
         return doneSum;
     }
 
-    public void setDoneSum(Integer doneSum) {
-        this.doneSum = doneSum;
+    public void setDoneSum(Integer newDoneSum) {
+        this.doneSum.set(newDoneSum);
     }
 
-    public Integer getErrorSum() {
+    public AtomicInteger getErrorSum() {
         return errorSum;
     }
 
     public void setErrorSum(Integer errorSum) {
-        this.errorSum = errorSum;
+        this.errorSum.set(errorSum);
     }
 
-    public Integer getSuccessSum() {
+    public AtomicInteger getSuccessSum() {
         return successSum;
     }
 
     public void setSuccessSum(Integer successSum) {
-        this.successSum = successSum;
+        this.successSum.set(successSum);
     }
 
     public String getErrorFilePath() {
@@ -136,11 +138,11 @@ public class ImportAsyncInfo {
         this.errorFilePath = errorFilePath;
     }
 
-    public Boolean getEnd() {
+    public AtomicBoolean getEnd() {
         return isEnd;
     }
 
     public void setEnd(Boolean end) {
-        isEnd = end;
+        isEnd.set(end);
     }
 }

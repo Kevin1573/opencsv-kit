@@ -14,7 +14,24 @@
     <script src="https://cdn.jsdelivr.net/npm/uikit@3.2.2/dist/js/uikit-icons.min.js"></script>
     <!-- echarts -->
     <script crossorigin="anonymous" integrity="sha512-t9GZbGKCH5MuYUFsq5AdrhllT0kdnc2fNMizKDgLXBBXgHP2dXxjRPOzYJauAXW9OXLlSYELUqWD30k7cb0Mkg==" src="https://lib.baomitu.com/echarts/5.0.2/echarts.min.js"></script>
-
+    <style type="text/css">
+        #progresscontainer {
+            margin: 50px;
+            width: 400px;
+            height: 10px;
+            border: solid 1px green;
+        }
+        #progress {
+            width: 50%;
+            height: 100%;
+            background-color: green;
+        }
+        #p-v {
+            position: absolute;
+            top: -5px;
+            right: 0px;
+        }
+    </style>
 </head>
 <body>
 <div class="J_conWarp g-lr-mg g-warning-box">
@@ -47,7 +64,11 @@
                     </div>
 
                     <!-- 为 ECharts 准备一个具备大小（宽高）的 DOM -->
-                    <div id="main" style="width:100%;height:550px;"></div>
+                    <div id="progresscontainer">
+                        <div id="progress" style="width: 10%"></div>
+                        <div id="p-v">0%</div>
+                    </div>
+<!--                    <div id="main" style="width:100%;height:550px;"></div>-->
                     <div  id="downloadErrorExcelA"class="col-xs-12" style="height:150px;width:100%;display:none">
                         <div class="col-xs-4"></div>
                         <div  class="form-group ">
@@ -63,9 +84,10 @@
     </div>
 
 </div>
-</body>
+
 
 <script type="text/javascript">
+    // https://developer.aliyun.com/article/657237
     window.onload = window.onresize = function() {
       $(".J_containerWarp").height($(window).height() - 60);
       // $(".J_containerWarp").niceScroll({});
@@ -73,45 +95,19 @@
     $.ajaxSettings.async=true;
     var uuid=null;
     var setInterval_id=null;
-    var myChart = echarts.init(document.getElementById('main'));
-    var option = {
-        title : {
-            text: '正在进行导入中...',
-            subtext: '当前进度',
-            x:'center'
-        },
-        tooltip : {
-            trigger: 'item',
-            formatter: "{a} <br/>{b} : {c} ({d}%)"
-        },
-        legend: {
-            orient: 'vertical',
-            left: 'right',
-            data: ['导入成功','导入失败','未处理']
-        },
-        series : [
-            {
-                name: '导入进度',
-                type: 'pie',
-                // radius : '55%',
-                radius: ['50%', '70%'],
-                center: ['50%', '60%'],
-                data:[
-                    {value:0, name:'导入成功'},
-                    {value:0, name:'导入失败'},
-                    {value:100, name:'未处理'}
-                ],
-                itemStyle: {
-                    emphasis: {
-                        shadowBlur: 10,
-                        shadowOffsetX: 0,
-                        shadowColor: 'rgba(0, 0, 0, 0.5)'
-                    }
-                },
-                color: ['#2ECC71','#E67E22','#BDC3C7'],
-            }
-        ]
-    };
+
+    var progressBar = document.getElementById('progress');
+    var p = document.getElementById('p-v')
+    var timer = setInterval(function(){
+        if(progressBar.style.width == '100%'){
+            clearInterval(timer);
+            return;
+        }
+
+        progressBar.style.width = parseInt(progressBar.style.width)+1+'%';
+        p.innerHTML = progress.style.width;
+    }, 500);
+
     var E = {
         excelExport : function() {
             $("form[id=excelExportForm]").attr("action",
@@ -121,7 +117,6 @@
         saveExcel : function() {
             var file = $("#file").val();
             if(!file){
-                // Message.error("导入的文件不能为空");
                 UIkit.notification({
                     message: '导入的文件不能为空!',
                     status: 'warning',
@@ -131,9 +126,8 @@
                 return ;
             }
             //循环获取进度信息
-            setInterval_id=setInterval(E.getAsynInfo,500);
-            myChart.setOption(option);
-            // var index = layer.load(1);
+            // setInterval_id=setInterval(E.getAsynInfo,500);
+
             UIkit.notification({
                     message: 'Loading...',
                     status: 'primary',
@@ -155,14 +149,12 @@
                     contentType: false,
                     processData: false,
                     success : function(o) {
-                        console.log(o);
                         //设置uuid
                         uuid=o.uuid;
                         if(o.code==1){
                             //设置uuid
                             uuid=o.uuid;
                         } else {
-                            // Message.error(o.msg);
                             UIkit.notification({
                                 message: ''+o.msg,
                                 status: 'error',
@@ -182,7 +174,6 @@
             //如果uuid存在,进行获取数据
             if(uuid!=null){
                 $.post("/get_import_plan",{"uuid":uuid},function(o){
-                    console.log(o);
                     //如果获取到了数据
                     if(o.data!=null){
                         // 使用指定的配数据显示图表。
@@ -190,12 +181,12 @@
                         option.series[0].data[0].value=o.data.successSum;
                         option.series[0].data[1].value=o.data.errorSum;
                         option.series[0].data[2].value=o.data.totality-o.data.doneSum;
-                        myChart.setOption(option);
+                        // myChart.setOption(option);
                         //如果导入结束了
                         if(o.data.isEnd){
                             option.title.text="导入完成";
-                            myChart.setOption(option);
-                            clearInterval(setInterval_id);
+                            // myChart.setOption(option);
+                            // clearInterval(setInterval_id);
                             //如果有错误数据,展示错误文件的下载
                             if(o.data.totality>0&&o.data.errorSum>0){
                                 $("#fileName").val(o.data.errorFilePath);
@@ -207,11 +198,16 @@
                                 $("#main").hide();
                                 Message.error(o.data.msg);
                             }else{
-                                Message.success("导入结束,"+o.data.successSum+"条数据导入成功,"+o.data.errorSum+"条数据导入失败");
+                                // Message.success("导入结束,"+o.data.successSum+"条数据导入成功,"+o.data.errorSum+"条数据导入失败");
+                                UIkit.notification({
+                                    message: "导入结束,"+o.data.successSum+"条数据导入成功,"+o.data.errorSum+"条数据导入失败",
+                                    status: 'success',
+                                    pos: 'top-center',
+                                    timeout: 5000
+                                });
                             }
                         }
                     }else{
-                        // Message.error(o.msg);
                         UIkit.notification({
                             message: ''+o.msg,
                             status: 'error',
@@ -231,5 +227,5 @@
     }
 
 </script>
-
+</body>
 </html>

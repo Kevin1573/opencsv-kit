@@ -26,7 +26,8 @@ public class FileImportController /*extends AbstractAPIController*/ {
     @Resource
     private FileImportServiceImpl fileImportService;
 
-    private ExecutorService executor = Executors.newCachedThreadPool() ;
+    private ExecutorService executor = Executors.newCachedThreadPool();
+
     //下载导入模板
     @RequestMapping("/excelExport")
     public void excelExport(HttpServletResponse response) {
@@ -35,12 +36,12 @@ public class FileImportController /*extends AbstractAPIController*/ {
 
     //数据导入处理
     @RequestMapping("/save_csv_auto")
-    public Map<String, Object> saveFile(HttpServletResponse response, @RequestParam("file") MultipartFile file){
+    public Map<String, Object> saveFile(HttpServletResponse response, @RequestParam("file") MultipartFile file) {
         Map<String, Object> m = new HashMap<>();
-        String uuid= ImportAsyncInfo.createAsyncInfo();
+        String uuid = ImportAsyncInfo.createAsyncInfo();
         try {
             final InputStream inputStream = file.getInputStream();
-            executor.submit(new Runnable(){
+            executor.submit(new Runnable() {
                 @SneakyThrows
                 @Override
                 public void run() {
@@ -48,7 +49,7 @@ public class FileImportController /*extends AbstractAPIController*/ {
 
                         fileImportService.saveExcel(response, inputStream, uuid);
                         // studentImportService.saveExcel_auto_studentno(response, inputStream,uuid);
-                    }catch(Exception e) {
+                    } catch (Exception e) {
                         e.printStackTrace();
                         ImportAsyncInfo.getAsyncInfo(uuid).setMsg(e.getMessage());
                         ImportAsyncInfo.getAsyncInfo(uuid).setEnd(true);
@@ -59,34 +60,35 @@ public class FileImportController /*extends AbstractAPIController*/ {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        m.put("uuid",uuid);
+        m.put("uuid", uuid);
         return m;
     }
 
     //下载导入的错误文件
     @RequestMapping("downloadErrorExcel")
-    public void downloadErrorExcel(HttpServletResponse response, String fileName){
+    public void downloadErrorExcel(HttpServletResponse response, String fileName) {
         // studentImportService.downloadErrorExcel(response, fileName);
     }
+
     //获取导入的进度
     @RequestMapping("get_import_plan")
-    public Map<String,Object> get_import_plan(String uuid) {
-        Map<String,Object> m = new HashMap<>();
-        ImportAsyncInfo asyncInfo=ImportAsyncInfo.getAsyncInfo(uuid);
+    public Map<String, Object> get_import_plan(String uuid) {
+        Map<String, Object> m = new HashMap<>();
+        ImportAsyncInfo asyncInfo = ImportAsyncInfo.getAsyncInfo(uuid);
         //如果导入结束,复制进度对象进行返回,将储存的进度对象删除
-        if(asyncInfo!=null&&asyncInfo.getEnd()){
-            ImportAsyncInfo newAsyncInfo=new ImportAsyncInfo();
-            newAsyncInfo.setEnd(asyncInfo.getEnd());
+        if (asyncInfo != null && asyncInfo.getEnd().get()) {
+            ImportAsyncInfo newAsyncInfo = new ImportAsyncInfo();
+            newAsyncInfo.setEnd(asyncInfo.getEnd().get());
             newAsyncInfo.setMsg(asyncInfo.getMsg());
             newAsyncInfo.setErrorFilePath(asyncInfo.getErrorFilePath());
-            newAsyncInfo.setTotality(asyncInfo.getTotality());
-            newAsyncInfo.setDoneSum(asyncInfo.getDoneSum());
-            newAsyncInfo.setErrorSum(asyncInfo.getErrorSum());
-            newAsyncInfo.setSuccessSum(asyncInfo.getSuccessSum());
+            newAsyncInfo.setTotality(asyncInfo.getTotality().get());
+            newAsyncInfo.setDoneSum(asyncInfo.getDoneSum().get());
+            newAsyncInfo.setErrorSum(asyncInfo.getErrorSum().get());
+            newAsyncInfo.setSuccessSum(asyncInfo.getSuccessSum().get());
             ImportAsyncInfo.deleteAsyncInfo(uuid);
-            asyncInfo=newAsyncInfo;
+            asyncInfo = newAsyncInfo;
         }
-        m.put("data",asyncInfo);
+        m.put("data", asyncInfo);
         return m;
     }
 }
