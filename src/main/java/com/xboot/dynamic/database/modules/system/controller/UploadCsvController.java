@@ -1,13 +1,15 @@
 package com.xboot.dynamic.database.modules.system.controller;
 
+import cn.hutool.core.date.LocalDateTimeUtil;
 import com.xboot.dynamic.database.modules.system.entity.ImportAsyncInfo;
+import com.xboot.dynamic.database.modules.system.entity.ImportDataRecord;
+import com.xboot.dynamic.database.modules.system.mapper.ImportDataRecordMapper;
+import com.xboot.dynamic.database.modules.system.service.IRatingService;
 import com.xboot.dynamic.database.modules.system.utils.CommonLineReaderUtil;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.annotation.Resource;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.lang.management.ManagementFactory;
@@ -16,6 +18,7 @@ import java.lang.management.MemoryPoolMXBean;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -23,6 +26,12 @@ import java.util.concurrent.Executors;
 public class UploadCsvController {
 
     private ExecutorService executor = Executors.newCachedThreadPool();
+
+    @Resource
+    private IRatingService ratingService;
+    @Resource
+    ImportDataRecordMapper importDataRecordMapper;
+
 
     @PostMapping("/uploadCache")
     public Object uploadFileCaching(
@@ -97,6 +106,64 @@ public class UploadCsvController {
         }
     }
 
+    @GetMapping("/test")
+    public String testAsync() {
+        CompletableFuture.runAsync(()->{
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.out.println("running async");
+        }, executor);
+        return "ok";
+    }
+
+    @PostMapping("/uploadA")
+    public Object uploadA(@RequestParam("file") MultipartFile multipartFile) {
+        String uuid = ImportAsyncInfo.createAsyncInfo();
+        System.out.println(uuid);
+        String zipFilePath = "d:/temp/Desktop";
+
+        // 初始化导入进度信息
+        Map<String, Object> result = new HashMap<>();
+        try {
+            final InputStream is = multipartFile.getInputStream();
+            InputStream cloneInputStream = null;
+            try (ByteArrayOutputStream baos = transInputStream(is)) {
+                cloneInputStream = new ByteArrayInputStream(baos.toByteArray());
+                int totalCount = countLineNum(cloneInputStream);
+                //获取csv导入数据数量后
+                ImportAsyncInfo asyncInfo = ImportAsyncInfo.getAsyncInfo(uuid);
+                asyncInfo.getTotality().addAndGet(totalCount);
+
+                InputStream cloneInputStream2 = new ByteArrayInputStream(baos.toByteArray());
+                final InputStreamReader isReader = new InputStreamReader(cloneInputStream2, Charset.forName("UTF-8"));
+                System.out.println("文件开始解析...");
+                CompletableFuture.runAsync(()->{
+                    ratingService.importAndExportData(isReader, uuid, zipFilePath);
+                }, executor);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                ImportAsyncInfo.getAsyncInfo(uuid).setMsg(ex.getMessage());
+                ImportAsyncInfo.getAsyncInfo(uuid).setEnd(true);
+            } finally {
+                // 记录
+                ImportDataRecord dataRecord = new ImportDataRecord();
+                dataRecord.setTitle("ratings");
+                final String url = String.format("%s/%s.zip", zipFilePath, uuid);
+                dataRecord.setUrl(url);
+                dataRecord.setCreateTime(LocalDateTimeUtil.now());
+                importDataRecordMapper.insert(dataRecord);
+            }
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        result.put("uuid", uuid);
+        return result;
+    }
 
     @PostMapping("/upload")
     public Object upload(HttpServletResponse response, @RequestParam("file") MultipartFile multipartFile) {
@@ -113,7 +180,7 @@ public class UploadCsvController {
                 try (ByteArrayOutputStream baos = transInputStream(is)) {
                     cloneInputStream = new ByteArrayInputStream(baos.toByteArray());
                     int totalCount = countLineNum(cloneInputStream);
-                    //获取csv导入数据数量后
+                    // 获取csv导入数据数量后
                     ImportAsyncInfo asyncInfo = ImportAsyncInfo.getAsyncInfo(uuid);
                     asyncInfo.getTotality().addAndGet(totalCount);
 

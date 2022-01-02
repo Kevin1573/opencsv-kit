@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xboot.dynamic.database.modules.system.mapper.RatingImportMapper">
+
+    <select id="selectPageA" resultType="com.xboot.dynamic.database.modules.system.entity.Ratings">
+        select * from ratings_temp rt
+        where rt.batch_no = #{batchNo,jdbcType=VARCHAR}
+        order by row_id+0
+        limit #{current}, #{pageSize}
+    </select>
+
+    <insert id="batchInsertImportData" parameterType="com.xboot.dynamic.database.modules.system.entity.Ratings" useGeneratedKeys="false">
+        INSERT INTO ratings_temp
+        (
+        row_id, w3_account, batch_no, user_id, movie_id, rating, timestamp, create_time
+        )
+        VALUES
+        <foreach collection="ratingsList" item="model" separator=",">
+            (
+            #{model.rowId}, #{model.w3Account}, #{model.batchNo},
+            #{model.userId}, #{model.movieId}, #{model.rating}, #{model.timestamp}, #{model.createTime}
+            )
+        </foreach>
+    </insert>
+</mapper>

@@ -1,22 +1,25 @@
 package com.xboot.dynamic.database.modules.system.utils;
 
+import cn.hutool.core.lang.generator.UUIDGenerator;
 import com.google.common.collect.Lists;
+import com.opencsv.CSVWriterBuilder;
+import com.opencsv.ICSVWriter;
 import com.xboot.dynamic.database.modules.system.entity.ImportAsyncInfo;
+import com.xboot.dynamic.database.modules.system.entity.Ratings;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.time.StopWatch;
 
-import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.*;
 import java.util.concurrent.*;
 
 public class CommonLineReaderUtil {
@@ -162,20 +165,94 @@ public class CommonLineReaderUtil {
         logMemory();
     }
 
-    private void doZipForResponse(HttpServletResponse response, String filePath) {
+    public void doZipForFileSystem(Map zipFileInfo, File filePath) {
         System.out.println("export zip file path is " + filePath);
         try {
+            final String path = filePath.getPath();
             //压缩文件
-            File zipFile = new File(filePath.substring(0, filePath.length() - 1) + ".zip");
+            File zipFile = new File(path + ".zip");
+            FileOutputStream fos = new FileOutputStream(zipFile);
+            //压缩文件目录
+            ZipUtils.toZip(path, fos, true);
+            //发送zip包
+            ZipUtils.sendFileSystem(zipFile);
+            System.out.println(zipFile.getName() + " 文件生成成功");
+            System.out.println("zip文件的大小：" + zipFile.length());
+            zipFileInfo.put("absolutePath", zipFile.getAbsoluteFile());
+            zipFileInfo.put("path", zipFile.getPath());
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } finally {
+            // 删除临时文件加
+//            try {
+//                Files.delete(Paths.get(filePath.getPath()));
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+            // deleteTempDir(filePath.getPath());
+        }
+
+    }
+
+    private void doZipForResponse(HttpServletResponse response, File filePath) {
+        System.out.println("export zip file path is " + filePath);
+        try {
+            final String path = filePath.getPath();
+            //压缩文件
+            File zipFile = new File(path.substring(0, path.length() - 1) + ".zip");
             FileOutputStream fos1 = new FileOutputStream(zipFile);
             //压缩文件目录
-            ZipUtils.toZip(filePath, fos1, true);
+            ZipUtils.toZip(path, fos1, true);
             //发送zip包
             // ZipUtils.sendZip(response, zipFile);
             ZipUtils.sendFileSystem(zipFile);
             System.out.println(zipFile.getName() + " 文件生成成功");
             System.out.println("zip文件的大小：" + zipFile.length());
         } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } finally {
+            // 删除临时文件加
+            try {
+                Files.delete(Paths.get(filePath.getPath()));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            // deleteTempDir(filePath.getPath());
+        }
+
+    }
+
+    private void deleteTempDir(String tempPath) {
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        final Path path = Paths.get(tempPath);
+        try {
+            Files.walkFileTree(path,
+                    new SimpleFileVisitor<Path>() {
+                        // 先去遍历删除文件
+                        @Override
+                        public FileVisitResult visitFile(Path file,
+                                                         BasicFileAttributes attrs) throws IOException {
+                            Files.delete(file);
+                            System.out.printf("文件被删除 : %s%n", file);
+                            return FileVisitResult.CONTINUE;
+                        }
+
+                        // 再去遍历删除目录
+                        @Override
+                        public FileVisitResult postVisitDirectory(Path dir,
+                                                                  IOException exc) throws IOException {
+                            Files.delete(dir);
+                            System.out.printf("文件夹被删除: %s%n", dir);
+                            return FileVisitResult.CONTINUE;
+                        }
+
+                    }
+            );
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
@@ -241,7 +318,7 @@ public class CommonLineReaderUtil {
             System.out.println(Arrays.toString(extFieldData.toArray()));
 
 
-            doZipForResponse(response, filePath.getPath());
+            doZipForResponse(response, filePath);
 
             stopwatch.stop();
         } catch (FileNotFoundException e) {
@@ -267,6 +344,172 @@ public class CommonLineReaderUtil {
         logMemory();
     }
 
+    public void readInApacheIOWithThreadPoolA(HttpServletResponse response, Reader reader, String uuid) {
+
+        try {
+
+            Iterable<CSVRecord> records = CSVFormat.RFC4180.withHeader("movieId", "tagId", "relevance").parse(reader);// 定义后必须和csv文件中的标头一致
+            List<List<String>> firstFiveRecord = new ArrayList<>();
+            int line = 0;
+            for (CSVRecord csvRecord : records) {// 第一行不会被打印出来
+                if (line < 5) {
+                    // 模拟前5行数据
+                    firstFiveRecord.add(new ArrayList<>());
+                    System.out.println(csvRecord.isConsistent() + "  " + csvRecord.getRecordNumber() + "  " + (csvRecord.isMapped("movieId") ? csvRecord.get("movieId") : ""));
+                    line++;
+                    continue;
+                }
+                // 校验当前行数据，如果有错误写入到ImportAsyncInfo对象中
+                validateData(csvRecord, uuid);
+
+                // 将数据批量写入到临时表中 -- 多线程写入
+                // TODO insertData2DB
+                DbProxy.insertData2Db(csvRecord.toMap());
+                line++;
+            }
+
+            String[] header = new String[]{"value", "content", "date"};
+            exportDataFromDbJoin(response, "UTF-8", uuid, header);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+    }
+
+    public File createTempDirName(String zipFilePath, String uuid) {
+        // 临时文件目录
+        String randomDir = uuid;
+        File filePath = new File(zipFilePath + "/" + randomDir);
+        if (!filePath.exists()) {
+            filePath.mkdirs();
+        }
+        return filePath;
+    }
+
+    public Map exportDataFromDbJoin(String charset, String uuid, String... header) {
+        Map zipFileInfo = new HashMap();
+        final File filePath = createTempDirName("D:/temp/Desktop", uuid);
+        // 从DB中join出数据,分批写入到临时文件中 -- 单线程
+        // batchSize 分批次写入到文件中
+        int totalCount = selectDataCount();
+        int pageSize = 1000;
+        int pageIndex = 1;
+        int batchSize = 10000;
+        int pageNum = totalCount % pageSize == 0 ? totalCount / pageSize : (int) (totalCount / pageSize) + 1;
+        for (int i = 0; i < pageNum; i++) {
+            List<Map<String, String>> dbData = selectData(pageSize, pageIndex++, batchSize);
+            // 每个批次生成一个文件
+            processDataTask(dbData, filePath, charset, uuid, header);
+        }
+
+        // 合并压缩文件
+        doZipForFileSystem(zipFileInfo, filePath);
+        return zipFileInfo;
+    }
+
+    private void exportDataFromDbJoin(HttpServletResponse response, String charset, String uuid, String... header) {
+
+        final File filePath = createTempDirName("d:/temp/Desktop", uuid);
+        // 从DB中join出数据,分批写入到临时文件中 -- 单线程
+        // batchSize 分批次写入到文件中
+        int totalCount = selectDataCount();
+        int pageSize = 1000;
+        int pageIndex = 1;
+        int batchSize = 10000;
+        int pageNum = totalCount % pageSize == 0 ? totalCount / pageSize : (int) (totalCount / pageSize) + 1;
+        for (int i = 0; i < pageNum; i++) {
+            List<Map<String, String>> dbData = selectData(pageSize, pageIndex++, batchSize);
+            // 每个批次生成一个文件
+            processDataTask(dbData, filePath, charset, uuid, header);
+        }
+
+        // 合并压缩文件
+        doZipForResponse(response, filePath);
+    }
+
+    public void processDataTaskA(List<Ratings> data, File file, String charset, String uuid, String... header) {
+        long timeMillis = System.currentTimeMillis();
+        ICSVWriter icsvWriter = null;
+        try {
+            final File tempFile = new File(file + "/export-" + timeMillis + ".csv");
+            final OutputStream out = new FileOutputStream(tempFile);
+            // 写入bom, 防止中文乱码
+            byte[] bytes = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
+            out.write(bytes);
+            OutputStreamWriter writer = new OutputStreamWriter(out, charset);
+
+            icsvWriter = new CSVWriterBuilder(writer).build();
+            icsvWriter.writeNext(header);
+            for (Ratings line : data) {
+                icsvWriter.writeNext(new String[]{line.getUserId(),
+                        line.getMovieId(), line.getRating(), line.getTimestamp()});
+
+                //在一条数据处理结束后
+                ImportAsyncInfo.doneSumAddOne(uuid);
+            }
+
+            icsvWriter.writeNext(new String[]{new UUIDGenerator().next()});
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            assert icsvWriter != null;
+            icsvWriter.flushQuietly();
+        }
+    }
+
+    public void processDataTask(List<Map<String, String>> data, File file, String charset, String uuid, String... header) {
+        long timeMillis = System.currentTimeMillis();
+        ICSVWriter icsvWriter = null;
+        try {
+            final File tempFile = new File(file + "/export-" + timeMillis + ".csv");
+            final OutputStream out = new FileOutputStream(tempFile);
+            // 写入bom, 防止中文乱码
+            byte[] bytes = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
+            out.write(bytes);
+            OutputStreamWriter writer = new OutputStreamWriter(out, charset);
+
+            icsvWriter = new CSVWriterBuilder(writer).build();
+            icsvWriter.writeNext(header);
+            for (Map<String, String> line : data) {
+                // 模拟业务执行
+
+                final String dateStr = "2021-12-0" + (RandomUtils.nextInt() / 30);
+                icsvWriter.writeNext(new String[]{line.getOrDefault("key", "null"),
+                        line.get("content"), dateStr.substring(0, 10)});
+
+                //在一条数据处理结束后
+                ImportAsyncInfo.doneSumAddOne(uuid);
+            }
+
+            icsvWriter.writeNext(new String[]{new UUIDGenerator().next().toString()});
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            assert icsvWriter != null;
+            icsvWriter.flushQuietly();
+        }
+    }
+
+    private int selectDataCount() {
+        return 12000;
+    }
+
+    private List<Map<String, String>> selectData(int pageSize, int pageIndex, int batchSize) {
+        List<Map<String, String>> dataResult = new ArrayList<>();
+        for (int i = 0; i < batchSize; i++) {
+            final HashMap<String, String> map = new HashMap<>();
+            dataResult.add(map);
+
+            map.put("key", "value");
+            map.put("content", "(\"\\t\"+ 数据 +\"\\t\")");
+        }
+
+
+        return dataResult;
+    }
+
+
     public void readInApacheIOWithThreadPool(HttpServletResponse response, Reader reader, String uuid) {
         StopWatch stopwatch = StopWatch.createStarted();
         try {
@@ -277,9 +520,6 @@ public class CommonLineReaderUtil {
             if (!filePath.exists()) {
                 filePath.mkdirs();
             }
-
-
-
 
             int line = 0;
             for (CSVRecord csvRecord : records) {// 第一行不会被打印出来
@@ -326,7 +566,7 @@ public class CommonLineReaderUtil {
             // 打印扩展行的数据（前5行）
             System.out.println(Arrays.toString(extFieldData.toArray()));
 
-            doZipForResponse(response, filePath.getPath());
+            doZipForResponse(response, filePath);
             //导入完成后
             ImportAsyncInfo.getAsyncInfo(uuid).setEnd(true);
             stopwatch.stop();
@@ -352,8 +592,10 @@ public class CommonLineReaderUtil {
         // 计算内存占用
         logMemory();
     }
+
     /**
      * 复制输入流
+     *
      * @param inputStream 请求输入流
      * @return 复制出来的输入流
      */
@@ -366,22 +608,36 @@ public class CommonLineReaderUtil {
                 byteArrayOutputStream.write(buffer, 0, len);
             }
             byteArrayOutputStream.flush();
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
         return new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
     }
-    private void validateData(CSVRecord csvRecord, String uuid) {
+
+    public boolean validateData(CSVRecord csvRecord, String uuid) {
         //其他代码...
-        boolean 数据有错误 = false;
-        if (数据有错误) {
+        boolean isError = false;
+        if (isError) {
             //其他代码...
             ImportAsyncInfo.errorSumAddOne(uuid);
         } else {
             //其他代码...
             ImportAsyncInfo.successSumAddOne(uuid);
         }
+        return true;
+    }
+
+    public boolean validateData(String[] csvRecord, String uuid) {
+        //其他代码...
+        boolean isError = false;
+        if (isError) {
+            //其他代码...
+            ImportAsyncInfo.errorSumAddOne(uuid);
+        } else {
+            //其他代码...
+            ImportAsyncInfo.successSumAddOne(uuid);
+        }
+        return true;
     }
 
     private void handleData(ThreadPoolExecutor threadPoolExecutor, List<String[]> dataList, File filePath, final String uuid) throws InterruptedException, ExecutionException {

@@ -1,8 +1,11 @@
 package com.xboot.dynamic.database.modules.invokeapi;
 
 import cn.hutool.core.lang.generator.UUIDGenerator;
+import cn.hutool.jwt.JWTUtil;
 import com.google.common.util.concurrent.RateLimiter;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TokenUtil {
@@ -27,6 +30,26 @@ public class TokenUtil {
         }
         return token + " - " + adder.incrementAndGet();
 
+    }
+
+    public String genJwtToken() {
+        final UUIDGenerator uuidGenerator = new UUIDGenerator();
+        Map<String, Object> map = new HashMap<String, Object>() {
+            private static final long serialVersionUID = 1L;
+            {
+
+                put("uid", uuidGenerator.next());
+                long timestamp15d = 1000 * 60 * 60 * 24 * 15; //15天
+                long timestamp1d = 1000 * 60 * 60 * 24; //1天
+                long timestamp1h = 1000 * 60 * 60 * 1; //1小时
+                long timestamp1s = 1000 * 60 * 1; //1分钟
+
+                put("expire_time", System.currentTimeMillis() + timestamp1s);
+            }
+        };
+
+        final String token = JWTUtil.createToken(map, "123456".getBytes());
+        return token;
     }
 
     private static String getToken() {

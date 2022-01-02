@@ -27,6 +27,8 @@ public class ImportAsyncInfo {
     public String errorFilePath;
     //导入是否结束
     public AtomicBoolean isEnd = new AtomicBoolean(false);
+    final private long beginTime = System.currentTimeMillis();
+    private long costTime;
 
     /**
      * 创建一个进度信息,并获取对应的uuid
@@ -36,6 +38,7 @@ public class ImportAsyncInfo {
     public static String createAsyncInfo() {
         ImportAsyncInfo asyncInfo = new ImportAsyncInfo();
         String uuid = UUID.randomUUID().toString().replace("-", "");
+        //String uuid = "ea403a56-d863-4ba6-8faf-b516cbfd102f";
         allAsyncInfo.put(uuid, asyncInfo);
         return uuid;
     }
@@ -144,5 +147,17 @@ public class ImportAsyncInfo {
 
     public void setEnd(Boolean end) {
         isEnd.set(end);
+    }
+
+    public long getBeginTime() {
+        return beginTime;
+    }
+
+    public long getCostTime() {
+        return costTime;
+    }
+
+    public void setCostTime(long costTime) {
+        this.costTime = costTime;
     }
 }
